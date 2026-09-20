@@ -1,6 +1,6 @@
 {
   "name": "foccus-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Foccus para computador (Windows e Mac)",
   "author": "Foccus",
   "license": "UNLICENSED",
@@ -44,14 +44,17 @@
           ]
         }
       ],
-      "signAndEditExecutable": false
+      "signExecutable": false
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
       "allowElevation": false,
       "deleteAppDataOnUninstall": false,
-      "artifactName": "Foccus-Setup.${ext}"
+      "artifactName": "Foccus-Setup.${ext}",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
     },
     "mac": {
       "icon": "build/icon.png",
