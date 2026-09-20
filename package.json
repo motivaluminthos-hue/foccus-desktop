@@ -1,0 +1,75 @@
+{
+  "name": "foccus-desktop",
+  "version": "1.0.1",
+  "description": "Foccus para computador (Windows e Mac)",
+  "author": "Foccus",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test:mini": "electron . --test-mini",
+    "dist:win": "electron-builder --win --x64 --publish never",
+    "dist:mac": "electron-builder --mac --universal --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.4.3",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "app.foccus.desktop",
+    "productName": "Foccus",
+    "copyright": "Foccus",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "mini-preload.js",
+      "mini.html",
+      "mini.css",
+      "mini.js",
+      "package.json"
+    ],
+    "icon": "build/icon.png",
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Foccus-Setup.${ext}"
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "artifactName": "Foccus-Mac.${ext}"
+    }
+  },
+  "allowScripts": {
+    "electron@44.4.3": true,
+    "electron-winstaller@5.4.0": true
+  }
+}

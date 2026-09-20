@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://api.fontshare.com https://fonts.googleapis.com; font-src https://cdn.fontshare.com https://fonts.gstatic.com; img-src data:;">
+<title>Foccus</title>
+<link rel="stylesheet" href="mini.css">
+</head>
+<body>
+<div class="mini" id="mini">
+  <img class="mimg" id="cover" alt="" hidden>
+  <button class="cbtn mx" id="x" type="button" aria-label="Fechar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <div class="mring">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="bg" cx="50" cy="50" r="44"/><circle class="fg" id="ring" cx="50" cy="50" r="44"/></svg>
+    <span class="mtime" id="time">00:00</span>
+  </div>
+  <div class="mside">
+    <button class="minfo" id="info" type="button"><b id="title"></b><span class="mono" id="level"></span></button>
+    <div class="mbtns">
+      <button class="mbtn" id="play" type="button" aria-label="Iniciar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10-6.5z" fill="currentColor"/></svg></button>
+      <button class="mbtn" id="pause" type="button" aria-label="Pausar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg></button>
+    </div>
+  </div>
+</div>
+<script src="mini.js"></script>
+</body>
+</html>
