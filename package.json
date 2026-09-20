@@ -1,6 +1,6 @@
 {
   "name": "foccus-desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Foccus para computador (Windows e Mac)",
   "author": "Foccus",
   "license": "UNLICENSED",
@@ -68,7 +68,10 @@
           ]
         }
       ],
-      "artifactName": "Foccus-Mac.${ext}"
+      "artifactName": "Foccus-Mac.${ext}",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "O Foccus usa o microfone para a captura por voz."
+      }
     }
   },
   "allowScripts": {

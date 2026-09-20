@@ -237,12 +237,19 @@ function buildMenu() {
 /* ---------- ciclo de vida ---------- */
 function setupSession() {
   const ses = session.fromPartition(PARTITION);
-  const allow = (wc, permission, origin) => {
-    if (permission !== 'notifications') return false;
-    try { return new URL(origin || wc.getURL()).origin === SITE_ORIGIN; } catch (e) { return false; }
+  // só a origem do Foccus; notificações e microfone (só áudio, para a captura por voz). Câmera e o resto ficam negados.
+  const allow = (wc, permission, origin, details) => {
+    let ok = false; try { ok = new URL(origin || wc.getURL()).origin === SITE_ORIGIN; } catch (e) { return false; }
+    if (!ok) return false;
+    if (permission === 'notifications') return true;
+    if (permission === 'media') {
+      const types = (details && (details.mediaTypes || (details.mediaType ? [details.mediaType] : []))) || [];
+      return types.length > 0 && types.every(x => x === 'audio');
+    }
+    return false;
   };
-  ses.setPermissionRequestHandler((wc, permission, cb, details) => cb(allow(wc, permission, details && details.requestingUrl)));
-  ses.setPermissionCheckHandler((wc, permission, origin) => allow(wc, permission, origin));
+  ses.setPermissionRequestHandler((wc, permission, cb, details) => cb(allow(wc, permission, details && details.requestingUrl, details)));
+  ses.setPermissionCheckHandler((wc, permission, origin, details) => allow(wc, permission, origin, details));
 }
 
 async function runMiniTest() {
