@@ -12,6 +12,11 @@ const MINI_W = 340, MINI_H = 176;
 // --------------------------------------
 const SITE_ORIGIN = new URL(SITE_URL).origin;
 const TEST_MINI = !app.isPackaged && process.argv.includes('--test-mini');
+const TEST_ZOOM = !app.isPackaged ? (process.argv.find(a => a.startsWith('--test-zoom=')) || '').slice(12) : '';      // só em desenvolvimento: --test-zoom=<url> --size=LxA --out=<png>
+const argVal = k => { const a = process.argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : ''; };
+// Tela em pé (monitor girado): a janela vira um "celular grande". O zoom faz o site enxergar ~430 px de largura
+// e usar exatamente o layout de celular, só ampliado para ocupar a largura da janela; a altura segue a da janela.
+const MOBILE_W = 430;
 
 let mainWin = null;
 let miniWin = null;
@@ -63,6 +68,7 @@ function validateState(s) {
 function createMain() {
   mainWin = new BrowserWindow({
     width: 1100, height: 800, minWidth: 360, minHeight: 600,
+    ...(TEST_ZOOM ? (() => { const [w, h] = (argVal('size') || '1080x1920').split('x').map(Number); return { width: w, height: h, useContentSize: true, enableLargerThanScreen: true, minWidth: 100, minHeight: 100 }; })() : {}),
     title: 'Foccus',
     icon: path.join(__dirname, 'build', 'icon.png'),
     backgroundColor: '#121110',
@@ -81,6 +87,15 @@ function createMain() {
     }
   });
   const wc = mainWin.webContents;
+  const applyMobileZoom = () => {
+    if (!mainWin || mainWin.isDestroyed()) return;
+    const [w, h] = mainWin.getContentSize(), f = h > w ? Math.min(5, Math.max(1, w / MOBILE_W)) : 1;
+    if (Math.abs(wc.getZoomFactor() - f) > 0.01) wc.setZoomFactor(f);
+  };
+  ['resize', 'moved', 'maximize', 'unmaximize', 'restore', 'enter-full-screen', 'leave-full-screen'].forEach(ev => mainWin.on(ev, applyMobileZoom));
+  wc.on('dom-ready', applyMobileZoom);
+  wc.on('did-finish-load', applyMobileZoom);
+  screen.on('display-metrics-changed', applyMobileZoom);
   mainWin.once('ready-to-show', () => mainWin && mainWin.show());
   wc.on('will-navigate', (e, url) => {
     if (!isSiteUrl(url)) { e.preventDefault(); openExternalSafe(url); }
@@ -96,7 +111,18 @@ function createMain() {
     mainWin = null;
     closeMini(false);
   });
-  mainWin.loadURL(SITE_URL);
+  if (TEST_ZOOM) {
+    wc.once('did-finish-load', () => setTimeout(async () => {
+      try {
+        const info = await wc.executeJavaScript("innerWidth + 'x' + innerHeight + ' dpr=' + devicePixelRatio + ' layout=' + (document.querySelector('.tabbar') ? getComputedStyle(document.querySelector('.tabbar')).flexDirection : '?')");
+        const img = await wc.capturePage();
+        fs.writeFileSync(argVal('out') || 'zoom.png', img.toPNG());
+        const msg = '[teste-zoom] zoom=' + wc.getZoomFactor().toFixed(2) + ' pagina=' + info + ' janela=' + JSON.stringify(mainWin.getContentSize()); console.log(msg); fs.writeFileSync((argVal('out') || 'zoom.png') + '.txt', msg);
+      } catch (e) { console.log('[teste-zoom] erro', e.message); }
+      app.quit();
+    }, 4500));
+    mainWin.loadURL(TEST_ZOOM);
+  } else mainWin.loadURL(SITE_URL);
 }
 
 function focusMain() {
@@ -286,7 +312,7 @@ async function runMiniTest() {
   setTimeout(() => app.quit(), 300);
 }
 
-if (!TEST_MINI && !app.requestSingleInstanceLock()) {
+if (!TEST_MINI && !TEST_ZOOM && !app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', () => focusMain());
