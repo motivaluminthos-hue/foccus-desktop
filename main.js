@@ -42,7 +42,11 @@ function fromMini(e) {
 }
 
 /* ---------- validação do state ---------- */
+/* aceita a foto que a pessoa envia (base64, sempre foi assim) e também a foto de álbum, que mora no
+   nosso Storage e chega como link https — antes só o primeiro formato passava, então a capa de álbum
+   nunca aparecia no flutuante: o main process descartava o link antes de mandar pra janela. */
 const COVER_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+const COVER_URL_RE = /^https:\/\/emokxmdtioajmqarravn\.supabase\.co\/storage\/v1\/object\/public\/albums\/[^\s"'<>]+$/;
 const TIME_RE = /^\d{1,3}:\d\d$/;
 const THEMES = ['light', 'dark', 'black'];
 function validateState(s) {
@@ -52,7 +56,7 @@ function validateState(s) {
   if (typeof s.frac !== 'number' || !Number.isFinite(s.frac)) return null;
   if (!TIME_RE.test(s.time)) return null;
   let cover = null;
-  if (typeof s.cover === 'string' && s.cover.length <= 1.5 * 1024 * 1024 && COVER_RE.test(s.cover)) cover = s.cover;
+  if (typeof s.cover === 'string' && s.cover.length <= 1.5 * 1024 * 1024 && (COVER_RE.test(s.cover) || COVER_URL_RE.test(s.cover))) cover = s.cover;
   return {
     title: s.title.slice(0, 200),
     level: s.level.slice(0, 30),
