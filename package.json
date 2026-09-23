@@ -31,6 +31,8 @@
       "mini.html",
       "mini.css",
       "mini.js",
+      "spotify.js",
+      "spotify-config.json",
       "package.json"
     ],
     "icon": "build/icon.png",
