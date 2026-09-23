@@ -118,6 +118,9 @@ function createMain() {
   mainWin.on('closed', () => {
     mainWin = null;
     closeMini(false);
+    closeSpotFloating();      /* sem isso, a janelinha do Spotify sozinha mantinha o programa vivo
+                                  em segundo plano e travava a próxima abertura (second-instance
+                                  só reativa a janela principal, que já não existe mais) */
   });
   if (TEST_ZOOM) {
     wc.once('did-finish-load', () => setTimeout(async () => {
@@ -375,7 +378,7 @@ async function runMiniTest() {
 if (!TEST_MINI && !TEST_ZOOM && !app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => focusMain());
+  app.on('second-instance', () => { if (!mainWin || mainWin.isDestroyed()) createMain(); else focusMain(); });      /* rede de segurança: mesmo se a janela principal já tiver fechado por algum motivo, abre de novo em vez de não fazer nada */
   app.whenReady().then(() => {
     app.setAppUserModelId('app.foccus.desktop');
     buildMenu();
