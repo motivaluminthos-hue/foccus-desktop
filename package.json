@@ -1,6 +1,6 @@
 {
   "name": "foccus-desktop",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "Foccus para computador (Windows e Mac)",
   "author": "Foccus",
   "license": "UNLICENSED",
@@ -33,6 +33,10 @@
       "mini.js",
       "spotify.js",
       "spotify-config.json",
+      "spot-mini.html",
+      "spot-mini.css",
+      "spot-mini.js",
+      "spot-mini-preload.js",
       "package.json"
     ],
     "icon": "build/icon.png",

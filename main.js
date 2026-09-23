@@ -20,6 +20,7 @@ const MOBILE_W = 430;
 
 let mainWin = null;
 let miniWin = null;
+let spotWin = null;      // janelinha do Spotify — independente da do Pomodoro (miniWin)
 let lastState = null;
 let miniClosingByApp = false;
 let saveTimer = null;
@@ -39,6 +40,9 @@ function fromMain(e) {
 }
 function fromMini(e) {
   return !!miniWin && !miniWin.isDestroyed() && e.sender === miniWin.webContents;
+}
+function fromSpot(e) {
+  return !!spotWin && !spotWin.isDestroyed() && e.sender === spotWin.webContents;
 }
 
 /* ---------- validação do state ---------- */
@@ -249,13 +253,46 @@ ipcMain.handle('spotify:login', async (e) => {
   if (!fromMain(e)) return false;
   try { await spotify.login(); startSpotifyPolling(); return true; } catch (err) { return false; }
 });
-ipcMain.on('spotify:logout', (e) => { if (fromMain(e)) { spotify.logout(); if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('spotify:track', { playing: false }); } });
+ipcMain.on('spotify:logout', (e) => { if (fromMain(e)) { spotify.logout(); broadcastSpot({ playing: false }); } });
 ipcMain.on('spotify:play-pause', (e) => { if (fromMain(e)) spotify.playPause().catch(() => { }); });
 ipcMain.on('spotify:next', (e) => { if (fromMain(e)) spotify.next().catch(() => { }); });
 ipcMain.on('spotify:prev', (e) => { if (fromMain(e)) spotify.prev().catch(() => { }); });
-function startSpotifyPolling() {
-  spotify.startPolling(t => { if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('spotify:track', t); });
+function broadcastSpot(t) {
+  if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('spotify:track', t);
+  if (spotWin && !spotWin.isDestroyed()) spotWin.webContents.send('spotify:track', t);
 }
+function startSpotifyPolling() { spotify.startPolling(broadcastSpot); }
+
+/* janelinha flutuante do Spotify — some diferente da do Pomodoro (miniWin): abre, fecha e se
+   move sem depender uma da outra; as duas podem ficar na tela ao mesmo tempo. */
+function openSpotFloating() {
+  if (spotWin && !spotWin.isDestroyed()) { spotWin.focus(); return; }
+  const area = screen.getPrimaryDisplay().workArea;
+  spotWin = new BrowserWindow({
+    x: area.x + area.width - 320, y: area.y + 20, width: 300, height: 80,
+    useContentSize: true, frame: false, transparent: true, hasShadow: false, backgroundColor: '#00000000',
+    alwaysOnTop: true, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
+    skipTaskbar: true, show: false, title: 'Foccus · Spotify', icon: path.join(__dirname, 'build', 'icon.png'),
+    webPreferences: { preload: path.join(__dirname, 'spot-mini-preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false, spellcheck: false }
+  });
+  spotWin.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'screen-saver');
+  if (process.platform === 'darwin') spotWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  spotWin.webContents.on('will-navigate', (e) => e.preventDefault());
+  spotWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  spotWin.once('ready-to-show', () => { if (!spotWin.isDestroyed()) spotWin.showInactive(); });
+  spotWin.on('closed', () => { spotWin = null; });
+  spotWin.loadFile(path.join(__dirname, 'spot-mini.html'));
+}
+function closeSpotFloating() { if (spotWin && !spotWin.isDestroyed()) spotWin.close(); }
+ipcMain.on('spotify:open-floating', (e) => { if (fromMain(e)) openSpotFloating(); });
+ipcMain.on('spotify:close-floating', (e) => { if (fromMain(e)) closeSpotFloating(); });
+ipcMain.on('spot:cmd', (e, cmd) => {
+  if (!fromSpot(e)) return;
+  if (cmd === 'pp') spotify.playPause().catch(() => { });
+  else if (cmd === 'next') spotify.next().catch(() => { });
+  else if (cmd === 'prev') spotify.prev().catch(() => { });
+  else if (cmd === 'close') closeSpotFloating();
+});
 if (spotify.configured() && spotify.isLoggedIn()) app.whenReady().then(startSpotifyPolling);
 
 /* ---------- menu ---------- */

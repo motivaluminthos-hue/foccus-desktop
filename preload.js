@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('foccusDesktop', {
     playPause: () => ipcRenderer.send('spotify:play-pause'),
     next: () => ipcRenderer.send('spotify:next'),
     prev: () => ipcRenderer.send('spotify:prev'),
-    onTrack: (cb) => { trackListener = typeof cb === 'function' ? cb : null; }
+    onTrack: (cb) => { trackListener = typeof cb === 'function' ? cb : null; },
+    openFloating: () => ipcRenderer.send('spotify:open-floating'),
+    closeFloating: () => ipcRenderer.send('spotify:close-floating')
   }
 });
