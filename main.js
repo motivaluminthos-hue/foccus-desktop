@@ -17,6 +17,11 @@ const argVal = k => { const a = process.argv.find(x => x.startsWith('--' + k + '
 // Tela em pé (monitor girado): a janela vira um "celular grande". O zoom faz o site enxergar ~430 px de largura
 // e usar exatamente o layout de celular, só ampliado para ocupar a largura da janela; a altura segue a da janela.
 const MOBILE_W = 430;
+// ...mas só enquanto a janela é estreita de verdade. A partir daqui o próprio site tem layout de
+// tela em pé e larga (duas colunas, @media orientation:portrait and min-width:700px), então o zoom
+// sai de cena e a página usa o tamanho real. O número é o MESMO do CSS de propósito: assim não
+// existe faixa em que os dois valem ao mesmo tempo nem faixa em que nenhum vale.
+const LIMITE_CELULAR = 700;
 
 let mainWin = null;
 let miniWin = null;
@@ -98,7 +103,14 @@ function createMain() {
   const wc = mainWin.webContents;
   const applyMobileZoom = () => {
     if (!mainWin || mainWin.isDestroyed()) return;
-    const [w, h] = mainWin.getContentSize(), f = h > w ? Math.min(5, Math.max(1, w / MOBILE_W)) : 1;
+    /* O zoom existe pra deixar o layout de celular legível quando a janela está estreita e em pé.
+       Antes valia pra QUALQUER janela em pé, inclusive grande: numa de 900px dava 2,1x de zoom e
+       barra, capa e textos ficavam enormes. Pior: o zoom fazia a página enxergar uma largura
+       pequena, então o CSS de "tela em pé e larga" (2 colunas, a partir de 700px) nunca valia.
+       Agora o corte é exatamente nesse limite — abaixo dele, celular ampliado; a partir dele,
+       tamanho real e o layout de 2 colunas assume. */
+    const [w, h] = mainWin.getContentSize();
+    const f = (h > w && w < LIMITE_CELULAR) ? Math.min(1.6, Math.max(1, w / MOBILE_W)) : 1;
     if (Math.abs(wc.getZoomFactor() - f) > 0.01) wc.setZoomFactor(f);
   };
   ['resize', 'moved', 'maximize', 'unmaximize', 'restore', 'enter-full-screen', 'leave-full-screen'].forEach(ev => mainWin.on(ev, applyMobileZoom));
