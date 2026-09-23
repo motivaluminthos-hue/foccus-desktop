@@ -272,8 +272,8 @@ function openSpotFloating() {
   if (spotWin && !spotWin.isDestroyed()) { spotWin.focus(); return; }
   const area = screen.getPrimaryDisplay().workArea;
   spotWin = new BrowserWindow({
-    x: area.x + area.width - 320, y: area.y + 20, width: 300, height: 76,
-    minWidth: 220, minHeight: 76, maxWidth: 560, maxHeight: 220,
+    x: area.x + area.width - 360, y: area.y + 20, width: 340, height: 130,
+    minWidth: 260, minHeight: 120, maxWidth: 640, maxHeight: 300,
     useContentSize: true, frame: false, transparent: true, hasShadow: false, backgroundColor: '#00000000',
     alwaysOnTop: true, resizable: true, maximizable: false, minimizable: false, fullscreenable: false,
     skipTaskbar: true, show: false, title: 'Foccus · Spotify', icon: path.join(__dirname, 'build', 'icon.png'),
