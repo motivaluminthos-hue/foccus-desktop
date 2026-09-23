@@ -31,7 +31,7 @@ body{font-family:'Switzer','Helvetica Neue',Arial,sans-serif;padding:10px;displa
 .info p{margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tinta);line-height:1.2}
 #title{font-size:clamp(12px,13vh,32px);font-weight:600}
 #artist{margin-top:clamp(2px,2vh,6px)!important;font-size:clamp(9px,9vh,20px);color:var(--grafite)}
-.ctrl{display:flex;align-items:center;gap:clamp(6px,6vh,14px);min-width:0}
+.ctrl{display:flex;align-items:center;justify-content:space-between;gap:clamp(6px,6vh,14px);min-width:0}
 .acts{display:flex;gap:clamp(2px,2vh,6px);flex:none;align-items:center}
 .acts button{width:clamp(22px,20vh,44px);height:clamp(22px,20vh,44px);border:0;background:transparent;color:var(--tinta);
   display:grid;place-items:center;border-radius:50%;cursor:pointer;flex:none;padding:0}
@@ -42,12 +42,18 @@ body{font-family:'Switzer','Helvetica Neue',Arial,sans-serif;padding:10px;displa
 .acts .pp{background:var(--tinta);color:var(--papel);width:clamp(28px,26vh,56px);height:clamp(28px,26vh,56px)}
 .acts .pp svg{width:52%;height:52%}
 .acts .pp:hover{background:var(--tinta);opacity:.85}
-/* barra de progresso: escondida no formato barra (não cabe), aparece no alto/quadrado */
-.prog{display:none;align-items:center;gap:6px}
+/* A trilha da música é o que interessa ver, então aparece em todo formato que tenha altura pra ela.
+   Só some na janela bem baixinha (formato barra mínimo), onde não cabe mesmo. */
+.prog{display:flex;align-items:center;gap:6px;order:3}
+.info{order:1}
+.ctrl{order:2}
+@media (max-height:129px){.prog{display:none}}
 .prog-t{font-size:clamp(8px,3vh,11px);color:var(--grafite);font-variant-numeric:tabular-nums;flex:none}
 .prog-bar{flex:1;height:3px;border-radius:999px;background:var(--linha);overflow:hidden;min-width:0}
 .prog-bar i{display:block;height:100%;width:0;background:var(--tinta);border-radius:999px}
-.vol{display:flex;align-items:center;gap:clamp(4px,4vh,10px);flex:1;min-width:clamp(44px,18%,150px)}
+/* o volume NÃO estica mais: numa janela larga ele chegava a 386px, virava o elemento principal da
+   janelinha. Agora tem teto e quem ocupa a largura é a trilha da música, logo abaixo. */
+.vol{display:flex;align-items:center;gap:clamp(4px,4vh,10px);flex:0 1 clamp(60px,26%,150px);min-width:44px}
 .vol svg{flex:none;color:var(--grafite);width:clamp(12px,12vh,24px);height:clamp(12px,12vh,24px)}
 .vol input[type=range]{-webkit-appearance:none;width:100%;min-width:0;height:clamp(3px,3vh,6px);
   background:var(--linha);border-radius:999px;outline:none}
@@ -68,16 +74,22 @@ body.redim{cursor:nwse-resize}
 
 /* formato quadrado ou vertical: capa em cima, player embaixo. Aqui a janela é alta, então as
    medidas em vh precisam de fatores bem menores — com os da barra, o texto ia a 32px e estourava. */
-body.col .wrap{flex-direction:column;justify-content:flex-start;gap:clamp(6px,2vh,12px);padding:clamp(10px,3vh,18px)}
+/* Antes o lado de baixo esticava (.side flex:1) e os botões eram empurrados pro fundo
+   (.ctrl margin-top:auto): sobrava um vão morto de ~83px no meio e o player ficava lá embaixo.
+   Agora o bloco não estica, fica colado na capa, e a sobra (quando existe) se divide em cima e
+   embaixo em vez de virar um buraco no meio. */
+body.col .wrap{flex-direction:column;justify-content:center;gap:clamp(6px,2vh,12px);padding:clamp(10px,3vh,18px)}
 body.col .art{width:min(100%,50vh);height:auto;max-height:none;aspect-ratio:1;flex:none}
-body.col .side{width:100%;flex:1;min-height:0;gap:clamp(3px,1.2vh,8px);justify-content:flex-start}
+body.col .side{width:100%;flex:none;min-height:0;gap:clamp(3px,1.2vh,8px);justify-content:flex-start}
 body.col .info p{text-align:left}       /* título e artista alinhados à esquerda, como na referência */
-body.col #title{font-size:clamp(12px,5.5vh,20px)}
-body.col #artist{font-size:clamp(9px,4vh,14px);margin-top:clamp(2px,0.8vh,5px)!important}
-body.col .prog{display:flex}
-body.col .ctrl{justify-content:center;gap:clamp(6px,2vh,12px);margin-top:auto}
-body.col .acts button{width:clamp(22px,8vh,34px);height:clamp(22px,8vh,34px)}
-body.col .acts .pp{width:clamp(30px,11vh,46px);height:clamp(30px,11vh,46px)}
+/* tetos mais altos de propósito: quanto mais alta a janela, maior o player aparece — em vez de
+   ficar miúdo com espaço sobrando em volta */
+body.col #title{font-size:clamp(13px,5.5vh,26px)}
+body.col #artist{font-size:clamp(10px,4vh,17px);margin-top:clamp(2px,0.8vh,5px)!important}
+body.col .prog{display:flex;order:2}      /* no formato alto a trilha fica sob o nome, como na referência */
+body.col .ctrl{order:3;justify-content:center;gap:clamp(6px,2vh,12px);margin-top:clamp(4px,1.2vh,10px)}
+body.col .acts button{width:clamp(24px,8vh,42px);height:clamp(24px,8vh,42px)}
+body.col .acts .pp{width:clamp(32px,11vh,54px);height:clamp(32px,11vh,54px)}
 body.col .acts{gap:clamp(2px,0.8vh,5px)}
 body.col .vol{flex:0 1 40%;min-width:40px}
 body.col .vol svg{width:clamp(12px,4vh,18px);height:clamp(12px,4vh,18px)}
