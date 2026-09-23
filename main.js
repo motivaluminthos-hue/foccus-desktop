@@ -22,6 +22,7 @@ let mainWin = null;
 let miniWin = null;
 let spotWin = null;      // janelinha do Spotify — independente da do Pomodoro (miniWin)
 let lastState = null;
+let lastTheme = 'light';      /* tema atual do app: o player do Spotify acompanha */
 let miniClosingByApp = false;
 let saveTimer = null;
 let miniReady = false;
@@ -229,6 +230,9 @@ function sendToMain(cmd) {
 // cor dos 3 botões do Windows acompanha o tema do site (fundo e símbolo)
 const TITLEBAR = { light: ['#F2F1EE', '#121110'], dark: ['#121110', '#F2F1EE'], black: ['#050505', '#F2F1EE'] };
 ipcMain.on('desk:theme', (e, t) => {
+  /* guarda e repassa o tema pro player do Spotify (claro/escuro/preto), pra ele não destoar do
+     app — isto fica antes da checagem de Windows, que só vale pros 3 botões da barra de título. */
+  if (fromMain(e) && Object.prototype.hasOwnProperty.call(TITLEBAR, t)) { lastTheme = t; pushSpotTheme(); }
   if (!fromMain(e) || process.platform !== 'win32' || !mainWin || mainWin.isDestroyed() || !Object.prototype.hasOwnProperty.call(TITLEBAR, t)) return;
   try { mainWin.setTitleBarOverlay({ color: TITLEBAR[t][0], symbolColor: TITLEBAR[t][1], height: 36 }); mainWin.setBackgroundColor(TITLEBAR[t][0]); } catch (err) { /* sem overlay: ignora */ }
 });
@@ -268,32 +272,29 @@ function startSpotifyPolling() { spotify.startPolling(broadcastSpot); }
 
 /* janelinha flutuante do Spotify — some diferente da do Pomodoro (miniWin): abre, fecha e se
    move sem depender uma da outra; as duas podem ficar na tela ao mesmo tempo. */
-/* formatos prontos do player: em vez de arrastar pra qualquer medida (o que dava proporções
-   quebradas), a pessoa escolhe um destes pela alça do canto. Inclui quadrado e vertical.
-   [largura, altura, nome] — o layout (capa ao lado ou em cima) sai da própria proporção. */
-const SPOT_SIZES = [[280, 120, 'Barra P'], [350, 145, 'Barra M'], [440, 180, 'Barra G'], [300, 300, 'Quadrado'], [260, 380, 'Alto']];
+/* tamanho do player: arrasta a borda/canto como qualquer janela (redimensionamento nativo do
+   Windows — confiável, ao contrário de tentar controlar o arrasto por script dentro de uma janela
+   sem moldura). Fica preso entre um mínimo e um máximo, e o conteúdo se ajusta sozinho. */
+const SPOT_MIN = [240, 110], SPOT_MAX = [720, 480], SPOT_PADRAO = [340, 140];
 const SPOT_SIZE_FILE = () => path.join(app.getPath('userData'), 'spotify-size.json');
 function readSpotSize() {
-  try { const i = JSON.parse(fs.readFileSync(SPOT_SIZE_FILE(), 'utf8')).i; return (i >= 0 && i < SPOT_SIZES.length) ? i : 1; } catch (e) { return 1; }
+  try {
+    const s = JSON.parse(fs.readFileSync(SPOT_SIZE_FILE(), 'utf8'));
+    const w = Math.min(SPOT_MAX[0], Math.max(SPOT_MIN[0], s.w | 0));
+    const h = Math.min(SPOT_MAX[1], Math.max(SPOT_MIN[1], s.h | 0));
+    return (w && h) ? [w, h] : SPOT_PADRAO;
+  } catch (e) { return SPOT_PADRAO; }
 }
-function writeSpotSize(i) { try { fs.writeFileSync(SPOT_SIZE_FILE(), JSON.stringify({ i })); } catch (e) { } }
-function applySpotSize(i) {
-  if (!spotWin || spotWin.isDestroyed() || !(i >= 0 && i < SPOT_SIZES.length)) return;
-  const [w, h] = SPOT_SIZES[i];
-  spotWin.setResizable(true);            /* a janela vive travada; solta só pra aplicar a medida */
-  spotWin.setContentSize(w, h);
-  spotWin.setResizable(false);
-  writeSpotSize(i);
-  if (!spotWin.isDestroyed()) spotWin.webContents.send('spotify:size', i);
-}
+function writeSpotSize(w, h) { try { fs.writeFileSync(SPOT_SIZE_FILE(), JSON.stringify({ w, h })); } catch (e) { } }
 function openSpotFloating() {
   if (spotWin && !spotWin.isDestroyed()) { spotWin.focus(); return; }
   const area = screen.getPrimaryDisplay().workArea;
-  const [sw, sh] = SPOT_SIZES[readSpotSize()];
+  const [sw, sh] = readSpotSize();
   spotWin = new BrowserWindow({
     x: area.x + area.width - (sw + 20), y: area.y + 20, width: sw, height: sh,
+    minWidth: SPOT_MIN[0], minHeight: SPOT_MIN[1], maxWidth: SPOT_MAX[0], maxHeight: SPOT_MAX[1],
     useContentSize: true, frame: false, transparent: true, hasShadow: false, backgroundColor: '#00000000',
-    alwaysOnTop: true, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
+    alwaysOnTop: true, resizable: true, maximizable: false, minimizable: false, fullscreenable: false,
     skipTaskbar: true, show: false, title: 'Foccus · Spotify', icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'spot-mini-preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false, spellcheck: false }
   });
@@ -301,7 +302,13 @@ function openSpotFloating() {
   if (process.platform === 'darwin') spotWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   spotWin.webContents.on('will-navigate', (e) => e.preventDefault());
   spotWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  spotWin.once('ready-to-show', () => { if (!spotWin.isDestroyed()) { spotWin.showInactive(); spotWin.webContents.send('spotify:size', readSpotSize()); } });
+  spotWin.once('ready-to-show', () => { if (!spotWin.isDestroyed()) { spotWin.showInactive(); pushSpotTheme(); } });
+  /* lembra o tamanho escolhido pra próxima vez que abrir */
+  let salvaTam;
+  spotWin.on('resize', () => {
+    clearTimeout(salvaTam);
+    salvaTam = setTimeout(() => { if (spotWin && !spotWin.isDestroyed()) { const [w, h] = spotWin.getContentSize(); writeSpotSize(w, h); } }, 400);
+  });
   spotWin.on('closed', () => { spotWin = null; });
   spotWin.loadFile(path.join(__dirname, 'spot-mini.html'));
 }
@@ -316,8 +323,16 @@ ipcMain.on('spot:cmd', (e, cmd) => {
   else if (cmd === 'close') closeSpotFloating();
 });
 ipcMain.on('spot:volume', (e, pct) => { if (fromSpot(e) && typeof pct === 'number') spotify.setVolume(pct).catch(() => { }); });
-ipcMain.on('spot:size', (e, i) => { if (fromSpot(e) && Number.isInteger(i)) applySpotSize(i); });
-ipcMain.handle('spot:sizes', (e) => fromSpot(e) ? { lista: SPOT_SIZES.map(([w, h, nome]) => ({ w, h, nome })), atual: readSpotSize() } : null);
+function pushSpotTheme() { if (spotWin && !spotWin.isDestroyed()) spotWin.webContents.send('spotify:theme', lastTheme); }
+/* redimensionar vem da pinça do widget (janela transparente sem moldura não redimensiona pela
+   borda no Windows). Aqui só prende entre o mínimo e o máximo e aplica. */
+ipcMain.on('spot:size', (e, w, h) => {
+  if (!fromSpot(e) || typeof w !== 'number' || typeof h !== 'number') return;
+  const lw = Math.min(SPOT_MAX[0], Math.max(SPOT_MIN[0], Math.round(w)));
+  const lh = Math.min(SPOT_MAX[1], Math.max(SPOT_MIN[1], Math.round(h)));
+  const [aw, ah] = spotWin.getContentSize();
+  if (aw !== lw || ah !== lh) spotWin.setContentSize(lw, lh);
+});
 if (spotify.configured() && spotify.isLoggedIn()) app.whenReady().then(startSpotifyPolling);
 
 /* ---------- menu ---------- */

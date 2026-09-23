@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data: https://emokxmdtioajmqarravn.supabase.co https://i.scdn.co;">
@@ -11,11 +11,13 @@
   <div class="art" id="art"></div>
   <div class="side">
     <div class="info"><p id="title">Spotify</p><p id="artist">Nada tocando agora.</p></div>
+    <!-- barra de progresso: só aparece no formato alto/quadrado, onde tem espaço (igual a referência) -->
+    <div class="prog" id="prog"><span class="prog-t" id="pos">0:00</span><div class="prog-bar"><i id="prog-fill"></i></div><span class="prog-t" id="dur">0:00</span></div>
     <div class="ctrl">
       <div class="acts">
-        <button id="prev" aria-label="Anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 5v14M5 12l14-8v16z"/></svg></button>
-        <button id="pp" aria-label="Play/Pausa"><svg viewBox="0 0 24 24" fill="currentColor" id="pp-icon"><path d="M8 5v14l11-7z"/></svg></button>
-        <button id="next" aria-label="Próxima"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5v14M19 12L5 4v16z"/></svg></button>
+        <button id="prev" aria-label="Anterior"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3 6l9-6v12z"/></svg></button>
+        <button id="pp" class="pp" aria-label="Play/Pausa"><svg viewBox="0 0 24 24" fill="currentColor" id="pp-icon"><path d="M8 5v14l11-7z"/></svg></button>
+        <button id="next" aria-label="Próxima"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l9 6-9 6z"/></svg></button>
       </div>
       <div class="vol">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 10v4h3l4 3.5v-11L8 10H5z"/><path d="M16 9.5a4 4 0 0 1 0 5"/></svg>
@@ -24,10 +26,9 @@
     </div>
   </div>
   <button id="close" aria-label="Fechar">×</button>
-  <button id="grip" title="Mudar o tamanho" aria-label="Mudar o tamanho">
+  <div id="grip" aria-hidden="true">
     <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M11 5L5 11M11 9l-2 2"/></svg>
-  </button>
-  <div id="sizes" hidden></div>
+  </div>
 </div>
 <script src="spot-mini.js"></script>
 </body>

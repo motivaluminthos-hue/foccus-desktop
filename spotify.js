@@ -84,7 +84,11 @@ async function nowPlaying() {
   if (!j || !j.item) return { playing: false };
   const art = (j.item.album && j.item.album.images && j.item.album.images[0] && j.item.album.images[0].url) || null;
   const volume = j.device && typeof j.device.volume_percent === 'number' ? j.device.volume_percent : null;
-  return { playing: !!j.is_playing, title: j.item.name, artist: (j.item.artists || []).map(a => a.name).join(', '), art, volume };
+  return {
+    playing: !!j.is_playing, title: j.item.name, artist: (j.item.artists || []).map(a => a.name).join(', '), art, volume,
+    pos: typeof j.progress_ms === 'number' ? j.progress_ms : null,      /* pra barra de progresso do player */
+    dur: typeof j.item.duration_ms === 'number' ? j.item.duration_ms : null
+  };
 }
 
 function startPolling(cb) {
