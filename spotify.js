@@ -80,10 +80,11 @@ async function api(pathname, opts) {
 }
 
 async function nowPlaying() {
-  const j = await api('/me/player/currently-playing');
+  const j = await api('/me/player');
   if (!j || !j.item) return { playing: false };
   const art = (j.item.album && j.item.album.images && j.item.album.images[0] && j.item.album.images[0].url) || null;
-  return { playing: !!j.is_playing, title: j.item.name, artist: (j.item.artists || []).map(a => a.name).join(', '), art };
+  const volume = j.device && typeof j.device.volume_percent === 'number' ? j.device.volume_percent : null;
+  return { playing: !!j.is_playing, title: j.item.name, artist: (j.item.artists || []).map(a => a.name).join(', '), art, volume };
 }
 
 function startPolling(cb) {
@@ -98,5 +99,6 @@ function isLoggedIn() { return !!readTokens(); }
 const playPause = () => nowPlaying().then(t => api(t.playing ? '/me/player/pause' : '/me/player/play', { method: 'PUT' }));
 const next = () => api('/me/player/next', { method: 'POST' });
 const prev = () => api('/me/player/previous', { method: 'POST' });
+const setVolume = pct => api('/me/player/volume?volume_percent=' + Math.max(0, Math.min(100, Math.round(pct))), { method: 'PUT' });
 
-module.exports = { configured, login, logout, isLoggedIn, startPolling, stopPolling, playPause, next, prev };
+module.exports = { configured, login, logout, isLoggedIn, startPolling, stopPolling, playPause, next, prev, setVolume };

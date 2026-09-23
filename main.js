@@ -269,9 +269,10 @@ function openSpotFloating() {
   if (spotWin && !spotWin.isDestroyed()) { spotWin.focus(); return; }
   const area = screen.getPrimaryDisplay().workArea;
   spotWin = new BrowserWindow({
-    x: area.x + area.width - 320, y: area.y + 20, width: 300, height: 80,
+    x: area.x + area.width - 320, y: area.y + 20, width: 300, height: 96,
+    minWidth: 220, minHeight: 72, maxWidth: 520, maxHeight: 220,
     useContentSize: true, frame: false, transparent: true, hasShadow: false, backgroundColor: '#00000000',
-    alwaysOnTop: true, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
+    alwaysOnTop: true, resizable: true, maximizable: false, minimizable: false, fullscreenable: false,
     skipTaskbar: true, show: false, title: 'Foccus · Spotify', icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'spot-mini-preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false, spellcheck: false }
   });
@@ -293,6 +294,7 @@ ipcMain.on('spot:cmd', (e, cmd) => {
   else if (cmd === 'prev') spotify.prev().catch(() => { });
   else if (cmd === 'close') closeSpotFloating();
 });
+ipcMain.on('spot:volume', (e, pct) => { if (fromSpot(e) && typeof pct === 'number') spotify.setVolume(pct).catch(() => { }); });
 if (spotify.configured() && spotify.isLoggedIn()) app.whenReady().then(startSpotifyPolling);
 
 /* ---------- menu ---------- */

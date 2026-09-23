@@ -8,12 +8,18 @@
 </head>
 <body>
 <div class="wrap" id="wrap">
-  <div class="art" id="art"></div>
-  <div class="info"><b id="title">Spotify</b><p id="artist">Nada tocando agora.</p></div>
-  <div class="acts">
-    <button id="prev" aria-label="Anterior"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 5v14M5 12l14-8v16z"/></svg></button>
-    <button id="pp" aria-label="Play/Pausa"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" id="pp-icon"><path d="M8 5v14l11-7z"/></svg></button>
-    <button id="next" aria-label="Próxima"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5v14M19 12L5 4v16z"/></svg></button>
+  <div class="row">
+    <div class="art" id="art"></div>
+    <div class="info"><p id="title">Spotify</p><p id="artist">Nada tocando agora.</p></div>
+    <div class="acts">
+      <button id="prev" aria-label="Anterior"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 5v14M5 12l14-8v16z"/></svg></button>
+      <button id="pp" aria-label="Play/Pausa"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" id="pp-icon"><path d="M8 5v14l11-7z"/></svg></button>
+      <button id="next" aria-label="Próxima"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5v14M19 12L5 4v16z"/></svg></button>
+    </div>
+  </div>
+  <div class="vol">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 10v4h3l4 3.5v-11L8 10H5z"/><path d="M16 9.5a4 4 0 0 1 0 5"/></svg>
+    <input type="range" id="volume" min="0" max="100" value="50">
   </div>
   <button id="close" aria-label="Fechar">×</button>
 </div>

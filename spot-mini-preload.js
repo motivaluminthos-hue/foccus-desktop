@@ -5,5 +5,6 @@ let listener = null;
 ipcRenderer.on('spotify:track', (_e, t) => { if (typeof listener === 'function') { try { listener(t); } catch (err) { } } });
 contextBridge.exposeInMainWorld('spotBridge', {
   onTrack: (cb) => { listener = typeof cb === 'function' ? cb : null; },
-  cmd: (c) => { if (['pp', 'next', 'prev', 'close'].includes(c)) ipcRenderer.send('spot:cmd', c); }
+  cmd: (c) => { if (['pp', 'next', 'prev', 'close'].includes(c)) ipcRenderer.send('spot:cmd', c); },
+  volume: (pct) => { if (typeof pct === 'number') ipcRenderer.send('spot:volume', pct); }
 });
