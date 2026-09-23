@@ -9,6 +9,9 @@ ipcRenderer.on('mini:command', (_e, cmd) => {
   }
 });
 
+let trackListener = null;
+ipcRenderer.on('spotify:track', (_e, t) => { if (typeof trackListener === 'function') { try { trackListener(t); } catch (err) { } } });
+
 // state é copiado por valor (structured clone) e revalidado no processo main.
 contextBridge.exposeInMainWorld('foccusDesktop', {
   isDesktop: true,
@@ -19,5 +22,15 @@ contextBridge.exposeInMainWorld('foccusDesktop', {
     close: () => ipcRenderer.send('mini:close')
   },
   setTheme: (t) => { if (['light', 'dark', 'black'].includes(t)) ipcRenderer.send('desk:theme', t); },
-  onMiniCommand: (cb) => { listener = typeof cb === 'function' ? cb : null; }
+  onMiniCommand: (cb) => { listener = typeof cb === 'function' ? cb : null; },
+  spotify: {
+    configured: () => ipcRenderer.invoke('spotify:configured'),
+    loggedIn: () => ipcRenderer.invoke('spotify:logged-in'),
+    login: () => ipcRenderer.invoke('spotify:login'),
+    logout: () => ipcRenderer.send('spotify:logout'),
+    playPause: () => ipcRenderer.send('spotify:play-pause'),
+    next: () => ipcRenderer.send('spotify:next'),
+    prev: () => ipcRenderer.send('spotify:prev'),
+    onTrack: (cb) => { trackListener = typeof cb === 'function' ? cb : null; }
+  }
 });

@@ -241,6 +241,23 @@ ipcMain.on('mini:cmd', (e, cmd) => {
   else if (cmd === 'close') closeMini(true);
 });
 
+/* ---------- Spotify (widget "tocando agora"; tudo isolado em spotify.js) ---------- */
+const spotify = require('./spotify.js');
+ipcMain.handle('spotify:configured', (e) => fromMain(e) && spotify.configured());
+ipcMain.handle('spotify:logged-in', (e) => fromMain(e) && spotify.isLoggedIn());
+ipcMain.handle('spotify:login', async (e) => {
+  if (!fromMain(e)) return false;
+  try { await spotify.login(); startSpotifyPolling(); return true; } catch (err) { return false; }
+});
+ipcMain.on('spotify:logout', (e) => { if (fromMain(e)) { spotify.logout(); if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('spotify:track', { playing: false }); } });
+ipcMain.on('spotify:play-pause', (e) => { if (fromMain(e)) spotify.playPause().catch(() => { }); });
+ipcMain.on('spotify:next', (e) => { if (fromMain(e)) spotify.next().catch(() => { }); });
+ipcMain.on('spotify:prev', (e) => { if (fromMain(e)) spotify.prev().catch(() => { }); });
+function startSpotifyPolling() {
+  spotify.startPolling(t => { if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('spotify:track', t); });
+}
+if (spotify.configured() && spotify.isLoggedIn()) app.whenReady().then(startSpotifyPolling);
+
 /* ---------- menu ---------- */
 function buildMenu() {
   if (process.platform !== 'darwin') { Menu.setApplicationMenu(null); return; }
