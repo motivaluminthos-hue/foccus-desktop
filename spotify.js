@@ -19,7 +19,7 @@ const b64url = buf => buf.toString('base64').replace(/\+/g, '-').replace(/\//g, 
 const readTokens = () => { try { return JSON.parse(fs.readFileSync(TOKEN_FILE(), 'utf8')); } catch (e) { return null; } };
 const writeTokens = t => { try { fs.writeFileSync(TOKEN_FILE(), JSON.stringify(t)); } catch (e) { } };
 
-let verifier = null, pollTimer = null, onTrack = null, server = null;
+let verifier = null, pollTimer = null, onTrack = null, server = null, lastGood = null, missCount = 0;
 
 function configured() { return !!CLIENT_ID; }
 
@@ -75,7 +75,7 @@ async function api(pathname, opts) {
   const tok = await refreshIfNeeded(); if (!tok) return null;
   const r = await fetch('https://api.spotify.com/v1' + pathname, { ...opts, headers: { ...(opts && opts.headers), Authorization: 'Bearer ' + tok } });
   if (r.status === 204 || r.status === 202) return null;
-  if (!r.ok) return null;
+  if (!r.ok) { try { console.error('[spotify] ' + pathname + ' -> ' + r.status + ' ' + (await r.text())); } catch (e) { } return null; }
   try { return await r.json(); } catch (e) { return null; }
 }
 
@@ -88,11 +88,19 @@ async function nowPlaying() {
 }
 
 function startPolling(cb) {
-  onTrack = cb; stopPolling();
-  const tick = () => nowPlaying().then(t => { if (onTrack) onTrack(t); }).catch(() => { });
+  onTrack = cb; stopPolling(); lastGood = null; missCount = 0;
+  /* logo depois de pausar, o /me/player às vezes devolve uma resposta vazia por um instante
+     (o estado ainda não "assentou" do lado do Spotify) — sem isso, o widget piscava "nada
+     tocando" na hora mesmo com a música só pausada. Tolera 1 resposta vazia antes de acreditar. */
+  const tick = () => nowPlaying().then(t => {
+    if (t && t.title) { lastGood = t; missCount = 0; }
+    else if (lastGood && missCount < 1) { missCount++; t = { ...lastGood, playing: false }; }
+    else { lastGood = null; }
+    if (onTrack) onTrack(t);
+  }).catch(() => { });
   tick(); pollTimer = setInterval(tick, 5000);
 }
-function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
+function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; lastGood = null; missCount = 0; }
 
 function logout() { writeTokens(null); stopPolling(); }
 function isLoggedIn() { return !!readTokens(); }
