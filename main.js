@@ -268,14 +268,32 @@ function startSpotifyPolling() { spotify.startPolling(broadcastSpot); }
 
 /* janelinha flutuante do Spotify — some diferente da do Pomodoro (miniWin): abre, fecha e se
    move sem depender uma da outra; as duas podem ficar na tela ao mesmo tempo. */
+/* formatos prontos do player: em vez de arrastar pra qualquer medida (o que dava proporções
+   quebradas), a pessoa escolhe um destes pela alça do canto. Inclui quadrado e vertical.
+   [largura, altura, nome] — o layout (capa ao lado ou em cima) sai da própria proporção. */
+const SPOT_SIZES = [[280, 120, 'Barra P'], [350, 145, 'Barra M'], [440, 180, 'Barra G'], [300, 300, 'Quadrado'], [260, 380, 'Alto']];
+const SPOT_SIZE_FILE = () => path.join(app.getPath('userData'), 'spotify-size.json');
+function readSpotSize() {
+  try { const i = JSON.parse(fs.readFileSync(SPOT_SIZE_FILE(), 'utf8')).i; return (i >= 0 && i < SPOT_SIZES.length) ? i : 1; } catch (e) { return 1; }
+}
+function writeSpotSize(i) { try { fs.writeFileSync(SPOT_SIZE_FILE(), JSON.stringify({ i })); } catch (e) { } }
+function applySpotSize(i) {
+  if (!spotWin || spotWin.isDestroyed() || !(i >= 0 && i < SPOT_SIZES.length)) return;
+  const [w, h] = SPOT_SIZES[i];
+  spotWin.setResizable(true);            /* a janela vive travada; solta só pra aplicar a medida */
+  spotWin.setContentSize(w, h);
+  spotWin.setResizable(false);
+  writeSpotSize(i);
+  if (!spotWin.isDestroyed()) spotWin.webContents.send('spotify:size', i);
+}
 function openSpotFloating() {
   if (spotWin && !spotWin.isDestroyed()) { spotWin.focus(); return; }
   const area = screen.getPrimaryDisplay().workArea;
+  const [sw, sh] = SPOT_SIZES[readSpotSize()];
   spotWin = new BrowserWindow({
-    x: area.x + area.width - 360, y: area.y + 20, width: 340, height: 130,
-    minWidth: 260, minHeight: 120, maxWidth: 640, maxHeight: 300,
+    x: area.x + area.width - (sw + 20), y: area.y + 20, width: sw, height: sh,
     useContentSize: true, frame: false, transparent: true, hasShadow: false, backgroundColor: '#00000000',
-    alwaysOnTop: true, resizable: true, maximizable: false, minimizable: false, fullscreenable: false,
+    alwaysOnTop: true, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
     skipTaskbar: true, show: false, title: 'Foccus · Spotify', icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'spot-mini-preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false, spellcheck: false }
   });
@@ -283,7 +301,7 @@ function openSpotFloating() {
   if (process.platform === 'darwin') spotWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   spotWin.webContents.on('will-navigate', (e) => e.preventDefault());
   spotWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  spotWin.once('ready-to-show', () => { if (!spotWin.isDestroyed()) spotWin.showInactive(); });
+  spotWin.once('ready-to-show', () => { if (!spotWin.isDestroyed()) { spotWin.showInactive(); spotWin.webContents.send('spotify:size', readSpotSize()); } });
   spotWin.on('closed', () => { spotWin = null; });
   spotWin.loadFile(path.join(__dirname, 'spot-mini.html'));
 }
@@ -298,6 +316,8 @@ ipcMain.on('spot:cmd', (e, cmd) => {
   else if (cmd === 'close') closeSpotFloating();
 });
 ipcMain.on('spot:volume', (e, pct) => { if (fromSpot(e) && typeof pct === 'number') spotify.setVolume(pct).catch(() => { }); });
+ipcMain.on('spot:size', (e, i) => { if (fromSpot(e) && Number.isInteger(i)) applySpotSize(i); });
+ipcMain.handle('spot:sizes', (e) => fromSpot(e) ? { lista: SPOT_SIZES.map(([w, h, nome]) => ({ w, h, nome })), atual: readSpotSize() } : null);
 if (spotify.configured() && spotify.isLoggedIn()) app.whenReady().then(startSpotifyPolling);
 
 /* ---------- menu ---------- */

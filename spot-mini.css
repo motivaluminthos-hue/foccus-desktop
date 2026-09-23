@@ -35,3 +35,36 @@ body{font-family:'Switzer','Helvetica Neue',Arial,sans-serif;padding:10px;displa
   color:#F4F2EE;font-size:clamp(12px,12vh,20px);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
   z-index:2;opacity:.55;transition:opacity .15s ease}
 #close:hover{opacity:1;background:rgba(255,255,255,.22)}
+/* alça do canto de baixo à direita: puxar troca entre os tamanhos prontos (a janela em si fica
+   travada, então não tem como cair num formato estranho no meio do caminho). */
+#grip{-webkit-app-region:no-drag;position:absolute;bottom:0;right:0;width:clamp(18px,18vh,26px);height:clamp(18px,18vh,26px);
+  display:grid;place-items:center;color:#F4F2EE;opacity:.35;cursor:pointer;z-index:3;border:0;background:transparent;padding:0;
+  transition:opacity .15s ease}
+#grip svg{width:70%;height:70%}
+#grip:hover{opacity:.9}
+/* seletor de formato: abre no canto, um clique aplica. Sem arrastar — dentro de uma janela sem
+   moldura o arrasto é pouco confiável (a janela toda é área de arrastar), e era isso que não pegava. */
+#sizes{-webkit-app-region:no-drag;position:absolute;right:6px;bottom:26px;z-index:4;display:flex;flex-direction:column;gap:2px;
+  padding:5px;border-radius:10px;background:rgba(26,26,26,.98);box-shadow:0 6px 18px rgba(0,0,0,.6)}
+#sizes[hidden]{display:none}
+#sizes button{border:0;background:transparent;color:#F4F2EE;font-family:inherit;font-size:11px;text-align:left;
+  padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
+#sizes button:hover{background:rgba(255,255,255,.14)}
+#sizes button.on{background:rgba(255,255,255,.22);font-weight:600}
+
+/* formato quadrado ou vertical: capa em cima, player embaixo. Aqui a janela é alta, então as
+   medidas em vh precisam de fatores bem menores — com os mesmos da barra, o texto virava 32px e
+   o conteúdo estourava pra fora. A capa usa a ALTURA como referência pra continuar quadrada. */
+body.col .wrap{flex-direction:column;justify-content:center;gap:clamp(6px,2.5vh,14px);padding:clamp(10px,3vh,18px)}
+body.col .art{height:48%;width:auto;max-width:100%;max-height:48%;aspect-ratio:1;flex:none}
+body.col .side{width:100%;flex:none;gap:clamp(3px,1.2vh,8px)}
+body.col .info p{text-align:center}
+body.col #title{font-size:clamp(12px,5.5vh,20px)}
+body.col #artist{font-size:clamp(9px,4vh,14px);margin-top:clamp(2px,0.8vh,5px)!important}
+body.col .ctrl{justify-content:center;gap:clamp(6px,2vh,12px)}
+body.col .acts button{width:clamp(24px,10vh,40px);height:clamp(24px,10vh,40px)}
+body.col .acts{gap:clamp(2px,0.8vh,5px)}
+body.col .vol{flex:0 1 45%;min-width:40px}
+body.col .vol svg{width:clamp(12px,4vh,18px);height:clamp(12px,4vh,18px)}
+body.col .vol input[type=range]{height:clamp(3px,1vh,5px)}
+body.col .vol input[type=range]::-webkit-slider-thumb{width:clamp(10px,3.5vh,16px);height:clamp(10px,3.5vh,16px)}
