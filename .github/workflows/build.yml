@@ -1,7 +1,17 @@
 name: Build
 
+# Dispara sozinho a cada tag v* — MAS atenção: o GitHub ignora o disparo quando mais de três tags
+# são enviadas de uma vez. Publique sempre uma tag por vez ("git push origin v1.0.26"), nunca
+# "git push --tags". Foi por isso que o instalador do Mac ficou parado na 1.0.4: as tags iam todas
+# juntas e o workflow nunca rodava.
 on:
   workflow_dispatch:
+    inputs:
+      plataforma:
+        description: 'O que construir'
+        type: choice
+        options: [ambos, mac, windows]
+        default: ambos
   push:
     tags:
       - 'v*'
@@ -16,13 +26,21 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            plataforma: windows
             script: dist:win
             artifact: foccus-windows
             files: dist/Foccus-Setup.exe
           - os: macos-latest
+            plataforma: mac
             script: dist:mac
             artifact: foccus-mac
             files: dist/*.dmg
+    # por tag continua construindo os dois; no disparo manual dá pra pedir um só,
+    # que é o jeito de refazer o Mac sem mexer no .exe que já está publicado
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.plataforma == 'ambos' ||
+      inputs.plataforma == matrix.plataforma
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
