@@ -35,30 +35,34 @@ jobs:
             script: dist:mac
             artifact: foccus-mac
             files: dist/*.dmg
-    # por tag continua construindo os dois; no disparo manual dá pra pedir um só,
-    # que é o jeito de refazer o Mac sem mexer no .exe que já está publicado
-    if: >-
-      github.event_name != 'workflow_dispatch' ||
-      inputs.plataforma == 'ambos' ||
-      inputs.plataforma == matrix.plataforma
     runs-on: ${{ matrix.os }}
+    # por tag constrói os dois; no disparo manual dá pra pedir um só, que é o jeito de refazer o
+    # Mac sem reconstruir o .exe já publicado. A condição fica NOS PASSOS porque "matrix" não
+    # existe na condição do job — o GitHub recusa o arquivo inteiro se for usada lá.
+    env:
+      FAZER: ${{ github.event_name != 'workflow_dispatch' && 'sim' || (inputs.plataforma == 'ambos' && 'sim' || (inputs.plataforma == matrix.plataforma && 'sim' || 'nao')) }}
     steps:
       - uses: actions/checkout@v4
+        if: env.FAZER == 'sim'
       - uses: actions/setup-node@v4
+        if: env.FAZER == 'sim'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+        if: env.FAZER == 'sim'
       - run: npm run ${{ matrix.script }}
+        if: env.FAZER == 'sim'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - uses: actions/upload-artifact@v4
+        if: env.FAZER == 'sim'
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.files }}
           if-no-files-found: error
       - name: Publicar na Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.FAZER == 'sim' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.files }}
