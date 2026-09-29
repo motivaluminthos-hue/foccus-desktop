@@ -19,7 +19,7 @@ const b64url = buf => buf.toString('base64').replace(/\+/g, '-').replace(/\//g, 
 const readTokens = () => { try { return JSON.parse(fs.readFileSync(TOKEN_FILE(), 'utf8')); } catch (e) { return null; } };
 const writeTokens = t => { try { fs.writeFileSync(TOKEN_FILE(), JSON.stringify(t)); } catch (e) { } };
 
-let verifier = null, pollTimer = null, onTrack = null, server = null, lastGood = null, missCount = 0;
+let verifier = null, pollTimer = null, onTrack = null, server = null, lastGood = null, lastGoodAt = 0;
 
 function configured() { return !!CLIENT_ID; }
 
@@ -92,19 +92,22 @@ async function nowPlaying() {
 }
 
 function startPolling(cb) {
-  onTrack = cb; stopPolling(); lastGood = null; missCount = 0;
-  /* logo depois de pausar, o /me/player às vezes devolve uma resposta vazia por um instante
-     (o estado ainda não "assentou" do lado do Spotify) — sem isso, o widget piscava "nada
-     tocando" na hora mesmo com a música só pausada. Tolera 1 resposta vazia antes de acreditar. */
+  onTrack = cb; stopPolling(); lastGood = null; lastGoodAt = 0;
+  /* Depois de pausar, o Spotify para de reportar o aparelho e o /me/player passa a devolver vazio.
+     Antes isso era tolerado por UMA leitura só (5 segundos), então bastava pausar pra o player
+     virar "nada tocando" — era o que fazia ele sumir sozinho.
+     Agora a última música conhecida fica de pé, marcada como pausada, por meia hora. Só some se a
+     pessoa ficar esse tempo todo sem tocar nada, ou ao desconectar a conta. */
+  const ESQUECE = 30 * 60 * 1000;
   const tick = () => nowPlaying().then(t => {
-    if (t && t.title) { lastGood = t; missCount = 0; }
-    else if (lastGood && missCount < 1) { missCount++; t = { ...lastGood, playing: false }; }
+    if (t && t.title) { lastGood = t; lastGoodAt = Date.now(); }
+    else if (lastGood && Date.now() - lastGoodAt < ESQUECE) { t = { ...lastGood, playing: false }; }
     else { lastGood = null; }
     if (onTrack) onTrack(t);
   }).catch(() => { });
   tick(); pollTimer = setInterval(tick, 5000);
 }
-function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; lastGood = null; missCount = 0; }
+function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; lastGood = null; lastGoodAt = 0; }
 
 function logout() { writeTokens(null); stopPolling(); }
 function isLoggedIn() { return !!readTokens(); }
