@@ -93,15 +93,19 @@ async function nowPlaying() {
 
 function startPolling(cb) {
   onTrack = cb; stopPolling(); lastGood = null; lastGoodAt = 0;
-  /* Depois de pausar, o Spotify para de reportar o aparelho e o /me/player passa a devolver vazio.
-     Antes isso era tolerado por UMA leitura só (5 segundos), então bastava pausar pra o player
-     virar "nada tocando" — era o que fazia ele sumir sozinho.
-     Agora a última música conhecida fica de pé, marcada como pausada, por meia hora. Só some se a
-     pessoa ficar esse tempo todo sem tocar nada, ou ao desconectar a conta. */
+  /* Depois de pausar, o Spotify para de reportar e o /me/player devolve vazio. Antes isso era
+     tolerado por UMA leitura só (5 segundos), então bastava pausar pra o player sumir sozinho.
+     Agora a última música conhecida fica de pé, marcada como pausada, por meia hora. */
   const ESQUECE = 30 * 60 * 1000;
-  const tick = () => nowPlaying().then(t => {
+  const tick = () => nowPlaying().then(async t => {
     if (t && t.title) { lastGood = t; lastGoodAt = Date.now(); }
-    else if (lastGood && Date.now() - lastGoodAt < ESQUECE) { t = { ...lastGood, playing: false }; }
+    /* Vazio pode ser duas coisas bem diferentes: pausado (o Spotify aberto para de reportar) ou o
+       Spotify fechado. Pausado a gente segura a música na tela; fechado NÃO — senão o player fica
+       com botões que a API não tem como obedecer, e parece que o clique não faz nada.
+       O estado guardado também vira pausado, senão o play/pause sai invertido. */
+    else if (lastGood && Date.now() - lastGoodAt < ESQUECE && await melhorAparelho()) {
+      lastGood = { ...lastGood, playing: false }; t = lastGood;
+    }
     else { lastGood = null; }
     if (onTrack) onTrack(t);
   }).catch(() => { });
@@ -111,9 +115,44 @@ function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = nu
 
 function logout() { writeTokens(null); stopPolling(); }
 function isLoggedIn() { return !!readTokens(); }
-const playPause = () => nowPlaying().then(t => api(t.playing ? '/me/player/pause' : '/me/player/play', { method: 'PUT' }));
-const next = () => api('/me/player/next', { method: 'POST' });
-const prev = () => api('/me/player/previous', { method: 'POST' });
-const setVolume = pct => api('/me/player/volume?volume_percent=' + Math.max(0, Math.min(100, Math.round(pct))), { method: 'PUT' });
+/* Os comandos precisam saber se deram certo, e o api() devolve null tanto em sucesso quanto em
+   erro. Então aqui a gente devolve o status: ao pausar, o Spotify solta o aparelho e qualquer
+   comando passa a responder 404 NO_ACTIVE_DEVICE — era isso que travava pausar e pular. */
+async function comando(pathname, method, body) {
+  const tok = await refreshIfNeeded(); if (!tok) return 0;
+  const headers = { Authorization: 'Bearer ' + tok };
+  if (body) headers['Content-Type'] = 'application/json';
+  const r = await fetch('https://api.spotify.com/v1' + pathname, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) { try { console.error('[spotify] ' + pathname + ' -> ' + r.status + ' ' + (await r.text())); } catch (e) { } }
+  return r.status;
+}
+
+async function melhorAparelho() {
+  const j = await api('/me/player/devices');
+  const l = (j && j.devices) || [];
+  return l.find(x => x.is_active) || l[0] || null;
+}
+
+/* Passar device_id no próprio comando faz o Spotify só transferir a reprodução, sem pular a faixa.
+   Então a gente acorda o aparelho primeiro (transferência) e só depois repete o comando. */
+async function controlar(pathname, method, body) {
+  let st = await comando(pathname, method, body);
+  if (st !== 404) return st;
+  const d = await melhorAparelho();
+  if (!d) return st;                                    /* nenhum Spotify aberto: não há o que fazer */
+  await comando('/me/player', 'PUT', { device_ids: [d.id] });
+  await new Promise(r => setTimeout(r, 700));           /* a transferência não vale no mesmo instante */
+  return comando(pathname, method, body);
+}
+
+const playPause = async () => {
+  const t = await nowPlaying();
+  /* pausado, o /me/player vem vazio: aí vale o último estado conhecido, o mesmo que a tela mostra */
+  const tocando = (t && t.title) ? t.playing : !!(lastGood && lastGood.playing);
+  return controlar(tocando ? '/me/player/pause' : '/me/player/play', 'PUT');
+};
+const next = () => controlar('/me/player/next', 'POST');
+const prev = () => controlar('/me/player/previous', 'POST');
+const setVolume = pct => controlar('/me/player/volume?volume_percent=' + Math.max(0, Math.min(100, Math.round(pct))), 'PUT');
 
 module.exports = { configured, login, logout, isLoggedIn, startPolling, stopPolling, playPause, next, prev, setVolume };
