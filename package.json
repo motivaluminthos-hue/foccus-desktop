@@ -1,6 +1,6 @@
 {
   "name": "foccus-desktop",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "description": "Foccus para computador (Windows e Mac)",
   "author": "Foccus",
   "license": "UNLICENSED",
@@ -40,6 +40,13 @@
       "package.json"
     ],
     "icon": "build/icon.png",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "motivaluminthos-hue",
+        "repo": "foccus-desktop"
+      }
+    ],
     "win": {
       "icon": "build/icon.ico",
       "target": [
@@ -83,5 +90,8 @@
   "allowScripts": {
     "electron@44.4.3": true,
     "electron-winstaller@5.4.0": true
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

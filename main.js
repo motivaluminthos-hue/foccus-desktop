@@ -30,6 +30,7 @@ let lastState = null;
 let lastTheme = 'light';      /* tema atual do app: o player do Spotify acompanha */
 let miniClosingByApp = false;
 let saveTimer = null;
+let salvaMiniTam = null;
 let miniReady = false;
 
 /* ---------- utilidades ---------- */
@@ -157,20 +158,35 @@ function focusMain() {
 }
 
 /* ---------- janelinha ---------- */
+/* A janelinha do cronômetro só AUMENTA e DIMINUI: a proporção fica travada em MINI_W:MINI_H e o
+   conteúdo inteiro escala junto (ver mini.js), então o desenho é sempre o mesmo, só maior ou menor.
+   Guardar só a largura evita que arredondamento acumulado deforme a janela a cada abertura. */
+const MINI_RAZAO = MINI_W / MINI_H;
+const MINI_MIN_W = 240, MINI_MAX_W = 680;
+const MINI_SIZE_FILE = () => path.join(app.getPath('userData'), 'mini-size.json');
+function miniTam(w) {
+  const lw = Math.min(MINI_MAX_W, Math.max(MINI_MIN_W, Math.round(w || MINI_W)));
+  return [lw, Math.round(lw / MINI_RAZAO)];
+}
+function readMiniSize() {
+  try { return miniTam(JSON.parse(fs.readFileSync(MINI_SIZE_FILE(), 'utf8')).w); } catch (e) { return [MINI_W, MINI_H]; }
+}
+function writeMiniSize(w) { try { fs.writeFileSync(MINI_SIZE_FILE(), JSON.stringify({ w })); } catch (e) { } }
+
 const posFile = () => path.join(app.getPath('userData'), 'mini-position.json');
-function loadPos() {
+function loadPos(mw, mh) {
   try {
     const p = JSON.parse(fs.readFileSync(posFile(), 'utf8'));
     if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
       const ok = screen.getAllDisplays().some(d => {
         const a = d.workArea;
-        return p.x >= a.x - 20 && p.y >= a.y - 20 && p.x + MINI_W <= a.x + a.width + 20 && p.y + MINI_H <= a.y + a.height + 20;
+        return p.x >= a.x - 20 && p.y >= a.y - 20 && p.x + mw <= a.x + a.width + 20 && p.y + mh <= a.y + a.height + 20;
       });
       if (ok) return { x: Math.round(p.x), y: Math.round(p.y) };
     }
   } catch (e) { /* primeira vez */ }
   const a = screen.getPrimaryDisplay().workArea;
-  return { x: a.x + a.width - MINI_W - 16, y: a.y + a.height - MINI_H - 16 };
+  return { x: a.x + a.width - mw - 16, y: a.y + a.height - mh - 16 };
 }
 function savePosSoon() {
   clearTimeout(saveTimer);
@@ -192,12 +208,15 @@ function openMini(state) {
   if (!clean) return;
   lastState = clean;
   if (miniWin && !miniWin.isDestroyed()) { pushState(); if (!miniWin.isVisible()) miniWin.showInactive(); return; }
-  const { x, y } = loadPos();
+  const [mw, mh] = readMiniSize();
+  const { x, y } = loadPos(mw, mh);
   miniWin = new BrowserWindow({
-    x, y, width: MINI_W, height: MINI_H,
+    x, y, width: mw, height: mh,
+    minWidth: MINI_MIN_W, minHeight: Math.round(MINI_MIN_W / MINI_RAZAO),
+    maxWidth: MINI_MAX_W, maxHeight: Math.round(MINI_MAX_W / MINI_RAZAO),
     useContentSize: true,
     frame: false, transparent: true, hasShadow: false, backgroundColor: '#00000000',
-    alwaysOnTop: true, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
+    alwaysOnTop: true, resizable: true, maximizable: false, minimizable: false, fullscreenable: false,
     skipTaskbar: true, show: false,
     title: 'Foccus',
     icon: path.join(__dirname, 'build', 'icon.png'),
@@ -218,7 +237,12 @@ function openMini(state) {
   w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   miniReady = false;
   w.webContents.on('dom-ready', () => { miniReady = true; if (lastState) w.webContents.send('mini:state', lastState); if (!w.isDestroyed()) w.showInactive(); });
+  try { w.setAspectRatio(MINI_RAZAO); } catch (e) { /* plataforma sem suporte: o clamp abaixo cuida */ }
   w.on('moved', savePosSoon);
+  w.on('resize', () => {
+    clearTimeout(salvaMiniTam);
+    salvaMiniTam = setTimeout(() => { if (miniWin && !miniWin.isDestroyed()) writeMiniSize(miniWin.getContentSize()[0]); }, 400);
+  });
   w.on('closed', () => {
     const byUser = !miniClosingByApp;
     miniWin = null;
@@ -262,6 +286,15 @@ ipcMain.on('mini:cmd', (e, cmd) => {
   if (cmd === 'play' || cmd === 'pause') sendToMain(cmd);
   else if (cmd === 'open') { focusMain(); sendToMain('open'); }
   else if (cmd === 'close') closeMini(true);
+});
+/* pinça do canto: janela transparente sem moldura no Windows não redimensiona pela borda, então o
+   arrasto é feito no mini.js e chega aqui. Só a largura importa — a altura vem da proporção. */
+ipcMain.on('mini:set-size', (e, w) => {
+  if (!fromMini(e) || !Number.isFinite(w)) return;
+  if (!miniWin || miniWin.isDestroyed()) return;
+  const [lw, lh] = miniTam(w);
+  const [aw, ah] = miniWin.getContentSize();
+  if (aw !== lw || ah !== lh) miniWin.setContentSize(lw, lh);
 });
 
 /* ---------- Spotify (widget "tocando agora"; tudo isolado em spotify.js) ---------- */
@@ -422,6 +455,35 @@ async function runMiniTest() {
   setTimeout(() => app.quit(), 300);
 }
 
+/* ---------- Atualização automática ----------
+   Baixa a versão nova sozinha e instala quando o programa fecha, pra não ter que desinstalar e
+   instalar de novo a cada versão. Fica isolado aqui: se qualquer coisa falhar (sem internet,
+   release sem o latest.yml, GitHub fora), o programa segue funcionando igual.
+   Só no Windows: no Mac o Squirrel exige aplicativo ASSINADO pela Apple, e o nosso não é — lá a
+   atualização continua manual até existir a conta de desenvolvedor. */
+function ligaAtualizacao() {
+  if (!app.isPackaged || process.platform !== 'win32') return;
+  let updater;
+  try { updater = require('electron-updater').autoUpdater; } catch (e) { return; }
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = true;
+  updater.on('update-downloaded', (info) => {
+    try {
+      const { Notification } = require('electron');
+      if (Notification.isSupported()) {
+        new Notification({
+          title: 'Foccus atualizado',
+          body: 'A versão ' + (info && info.version ? info.version : 'nova') + ' já baixou. Ela entra no ar quando você fechar e abrir o programa.'
+        }).show();
+      }
+    } catch (e) { /* aviso é enfeite: nunca pode derrubar o programa */ }
+  });
+  updater.on('error', () => { /* sem internet ou release incompleta: ignora de propósito */ });
+  const olhar = () => { try { updater.checkForUpdates(); } catch (e) { } };
+  setTimeout(olhar, 8000);                        /* depois da janela abrir, pra não atrasar o início */
+  setInterval(olhar, 4 * 60 * 60 * 1000);         /* e de 4 em 4 horas, pra quem deixa aberto o dia todo */
+}
+
 if (!TEST_MINI && !TEST_ZOOM && !app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -432,6 +494,7 @@ if (!TEST_MINI && !TEST_ZOOM && !app.requestSingleInstanceLock()) {
     if (TEST_MINI) { runMiniTest(); return; }
     setupSession();
     createMain();
+    ligaAtualizacao();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0 || !mainWin) createMain();
       else focusMain();

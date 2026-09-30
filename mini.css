@@ -65,6 +65,15 @@ svg{display:block;flex:none}
 .mbtn:hover{transform:scale(1.06)}
 .mbtn:disabled{opacity:.4;cursor:default}
 
+/* Pinça do canto pra aumentar e diminuir. O desenho todo escala por zoom (ver mini.js), então estas
+   medidas continuam em px: elas crescem junto com o resto. */
+#grip{-webkit-app-region:no-drag;position:absolute;bottom:0;right:0;width:20px;height:20px;
+  display:grid;place-items:center;color:var(--tinta);opacity:.4;z-index:4;cursor:nwse-resize;touch-action:none}
+.mini.img #grip{color:#fff}
+#grip svg{width:65%;height:65%;pointer-events:none}
+#grip:hover{opacity:.9}
+body.redim{cursor:nwse-resize}
+
 @media (prefers-reduced-motion:reduce){
   .mini{animation:none}
   .mring .fg,.mbtn,.cbtn,.mtime{transition:none}

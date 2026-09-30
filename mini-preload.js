@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('foccusMini', {
   onState: (cb) => { ipcRenderer.on('mini:state', (_e, s) => cb(s)); },
   send: (cmd) => {
     if (['play', 'pause', 'open', 'close'].includes(cmd)) ipcRenderer.send('mini:cmd', cmd);
-  }
+  },
+  setSize: (w) => { if (typeof w === 'number' && isFinite(w)) ipcRenderer.send('mini:set-size', w); }
 });

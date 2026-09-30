@@ -92,19 +92,19 @@ async function nowPlaying() {
 }
 
 function startPolling(cb) {
-  onTrack = cb; stopPolling(); lastGood = null; lastGoodAt = 0;
+  onTrack = cb; stopPolling(); lastGood = null; lastGoodAt = 0; apar = { tem: true, em: 0 };
   /* Depois de pausar, o Spotify para de reportar e o /me/player devolve vazio. Antes isso era
      tolerado por UMA leitura só (5 segundos), então bastava pausar pra o player sumir sozinho.
      Agora a última música conhecida fica de pé, marcada como pausada, por meia hora. */
   const ESQUECE = 30 * 60 * 1000;
   const tick = () => nowPlaying().then(async t => {
-    if (t && t.title) { lastGood = t; lastGoodAt = Date.now(); }
-    /* Vazio pode ser duas coisas bem diferentes: pausado (o Spotify aberto para de reportar) ou o
-       Spotify fechado. Pausado a gente segura a música na tela; fechado NÃO — senão o player fica
-       com botões que a API não tem como obedecer, e parece que o clique não faz nada.
-       O estado guardado também vira pausado, senão o play/pause sai invertido. */
-    else if (lastGood && Date.now() - lastGoodAt < ESQUECE && await melhorAparelho()) {
-      lastGood = { ...lastGood, playing: false }; t = lastGood;
+    if (t && t.title) { lastGood = t; lastGoodAt = Date.now(); marcaAparelho(true); }
+    /* O player NÃO desaparece por causa de pausa. O estado guardado vira pausado (senão o
+       play/pause sai invertido) e, se não houver nenhum Spotify aberto, vai a marca `semAparelho`
+       pra janelinha avisar — em vez de mostrar botões que a API não tem como obedecer. */
+    else if (lastGood && Date.now() - lastGoodAt < ESQUECE) {
+      lastGood = { ...lastGood, playing: false };
+      t = { ...lastGood, semAparelho: !(await temAparelho()) };
     }
     else { lastGood = null; }
     if (onTrack) onTrack(t);
@@ -130,7 +130,20 @@ async function comando(pathname, method, body) {
 async function melhorAparelho() {
   const j = await api('/me/player/devices');
   const l = (j && j.devices) || [];
+  marcaAparelho(l.length > 0);
   return l.find(x => x.is_active) || l[0] || null;
+}
+
+/* Saber se ainda existe algum Spotify aberto custa uma chamada, então a resposta vale 15 s. Se a
+   chamada falhar, mantém a última que deu certo: um tropeço de rede não pode apagar o player. */
+let apar = { tem: true, em: 0 };
+function marcaAparelho(v) { apar = { tem: v, em: Date.now() }; }
+async function temAparelho() {
+  if (Date.now() - apar.em < 15000) return apar.tem;
+  const j = await api('/me/player/devices');
+  if (!j || !Array.isArray(j.devices)) return apar.tem;
+  marcaAparelho(j.devices.length > 0);
+  return apar.tem;
 }
 
 /* Passar device_id no próprio comando faz o Spotify só transferir a reprodução, sem pular a faixa.

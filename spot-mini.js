@@ -5,7 +5,11 @@ window.spotBridge.onTrack(t => {
   playing = !!(t && t.playing);
   $('art').style.backgroundImage = (t && t.art) ? `url("${t.art}")` : '';
   $('title').textContent = (t && t.title) ? t.title : 'Spotify';
-  $('artist').textContent = (t && t.title) ? t.artist : 'Nada tocando agora.';
+  /* Sem nenhum Spotify aberto a API não obedece a nada, então o player avisa em vez de deixar
+     botões que parecem funcionar e não fazem nada. A música continua na tela. */
+  const sem = !!(t && t.semAparelho);
+  document.body.classList.toggle('sem', sem);
+  $('artist').textContent = sem ? 'Abra o Spotify pra controlar' : ((t && t.title) ? t.artist : 'Nada tocando agora.');
   $('pp-icon').innerHTML = playing ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
   if (!volDrag && t && typeof t.volume === 'number') $('volume').value = t.volume;
   /* progresso: guarda a referência e deixa o relógio local andar entre as consultas (5s), pra
@@ -33,9 +37,17 @@ $('volume').addEventListener('pointerdown', () => volDrag = true);
 $('volume').addEventListener('pointerup', () => volDrag = false);
 $('volume').addEventListener('input', e => window.spotBridge.volume(+e.target.value));
 
-/* capa ao lado (janela mais larga) ou em cima (mais alta/quadrada). Como tudo escala por vh,
-   qualquer tamanho intermediário do arrasto continua proporcional. */
-function ajustaLayout() { document.body.classList.toggle('col', innerHeight > innerWidth * 0.78); }
+/* capa ao lado (janela mais larga) ou em cima (mais alta/quadrada).
+   A escala sai de UMA unidade (--u no CSS), limitada pela altura E pela largura. Só pela altura
+   (o vh de antes) esticar a janela pra baixo inflava texto e botões até eles vazarem pela lateral.
+   Os fatores de largura vêm do espaço que a capa ocupa em cada formato: deitado ela come ~42% da
+   largura, em pé ela ocupa a largura toda e a janela é bem mais alta que larga. */
+function ajustaLayout() {
+  const col = innerHeight > innerWidth * 0.78;
+  document.body.classList.toggle('col', col);
+  const u = Math.min(innerHeight, innerWidth * (col ? 1.35 : 0.41)) / 100;
+  document.documentElement.style.setProperty('--u', u.toFixed(3) + 'px');
+}
 ajustaLayout();
 addEventListener('resize', ajustaLayout);
 
