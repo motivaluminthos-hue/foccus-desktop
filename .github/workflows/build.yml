@@ -44,7 +44,7 @@ jobs:
             artifact: foccus-mac
             files: |
               dist/*.dmg
-              dist/*.yml
+              dist/latest-mac.yml
     runs-on: ${{ matrix.os }}
     # por tag constrói os dois; no disparo manual dá pra pedir um só, que é o jeito de refazer o
     # Mac sem reconstruir o .exe já publicado. A condição fica NOS PASSOS porque "matrix" não
